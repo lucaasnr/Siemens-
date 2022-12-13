@@ -1,0 +1,133 @@
+// Gerenciador de fila FIFO para sistema de disperção de pó STAM
+// Lucas Naresi Romano
+// Engenharia de processos Gestamp Taubaté
+// 07/12/2022
+// versão 0.0
+
+
+
+// Gerenciamento das receitas
+// 
+CASE #"Receita Trispector" OF
+    1:
+        #"qnt posição" := #"Constante de posicao 1";
+    2:
+        #"qnt posição" := #"Constante de posicao 2";
+    3:
+        #"qnt posição" := #"Constante de posicao 3";
+    4:
+        #"qnt posição" := #"Constante de posicao 4";
+    5:
+        #"qnt posição" := #"Constante de posicao 5";
+    6:
+        #"qnt posição" := #"Constante de posicao 6";
+    7:
+        #"qnt posição" := #"Constante de posicao 7";
+    8:
+        #"qnt posição" := #"Constante de posicao 8";
+    9:
+        #"qnt posição" := #"Constante de posicao 9";
+    10:
+        #"qnt posição" := #"Constante de posicao 10";
+    11:
+        #"qnt posição" := #"Constante de posicao 11";
+    12:
+        #"qnt posição" := #"Constante de posicao 12";
+END_CASE;
+
+//trigger 
+IF #"Inserir elemento"  THEN
+    #i.triggers[0] := 1;
+END_IF;
+
+// move resultado inputado para dentro da primeira posição do buffer
+// 
+IF NOT #"Inserir elemento" AND #i.triggers[0] //AND #"IN resultado elemento" <>'OK' AND #"IN resultado elemento" <>''
+THEN
+    #"buffer produto"[30] := #"Elemento de entrada";
+    #"buffer resultado"[30] := #"Resultado elemento";
+    #"buffer posição atual"[30] := #"qnt posição";
+    //Loop do tamanho do buffer onde movimenta os valores estilo FIFO
+    FOR #i."loop counter A" := 1 TO 30 BY 1
+    DO
+        #"buffer produto"[#i."loop counter A" - 1] := #"buffer produto"[#i."loop counter A"];
+        #"buffer resultado"[#i."loop counter A" - 1] := #"buffer resultado"[#i."loop counter A"];
+        #"buffer posição atual"[#i."loop counter A" - 1] := #"buffer posição atual"[#i."loop counter A"];
+    END_FOR;
+    #i.triggers[0] := 0;
+    #"buffer produto"[30] := 0;
+    #"buffer resultado"[30] := '';
+END_IF;
+    
+
+
+// Assim que a faca é acionada, decrementa o valor da posição da peça dentro do buffer
+//  Quando o valor de posição chega a 1 significa que a peça esta na faca e pronta para ser pintada
+// 
+IF #"Retirar elemento" AND NOT  #"Inserir elemento"  THEN
+    #i.triggers[1] := 1;
+END_IF;
+
+IF NOT #"Retirar elemento" AND #i.triggers[1]
+THEN
+    FOR #i."loop counter B" := 1 TO 30 BY 1
+    DO
+        IF #"buffer posição atual"[#i."loop counter B"] > 0 AND NOT #"elemento encontrado"
+        THEN
+            #"buffer posição atual"[#i."loop counter B"] := #"buffer posição atual"[#i."loop counter B"] - 1;
+        END_IF;
+        
+        IF #"buffer posição atual"[#i."loop counter B"] <= 1
+        THEN
+            
+            #"Elemento retirado" := #"buffer posição atual"[#i."loop counter B"];
+            
+            #"Status elemento" := #"buffer resultado"[#i."loop counter B"];
+            
+            #"buffer produto"[#i."loop counter B"] := 0;
+            
+            #"buffer resultado"[#i."loop counter B"] := '';
+            
+            #"buffer posição atual"[#i."loop counter B"] := 0;
+            
+            #"elemento encontrado" := 1;
+            
+        END_IF;
+    END_FOR;
+END_IF;
+
+//Necessario para decrementar os posicionadores quando um elemento é encontrado para ser pintado
+    IF #"elemento encontrado"
+    THEN
+        FOR #i."loop counter C" := 1 TO 30 BY 1
+            DO
+            #"buffer posição atual"[#i."loop counter C"] := #"buffer posição atual"[#i."loop counter C"] - 1;
+        END_FOR;
+            
+        
+    #"elemento encontrado" := 0;
+    #i.triggers[1] := 0;
+    #i.triggers[2] := 1;
+END_IF;
+                
+// Se elemento chegou na faca e contem uma string diferente de "ok" manda disparar o spray
+IF #"Status elemento" <> '' AND #"Status elemento"<> 'OK' AND #i.triggers[2]
+THEN
+    #"trigger spray" := true;
+    #i.triggers[2] := 0;
+ELSE
+    #"trigger spray" := false;
+END_IF;
+// tempo em que o spray fica ligado    
+            #i.timers[0].TOF(IN := #"trigger spray",
+                    
+                    PT := t#1s,
+                    
+                    Q =>#"Disparo spray");
+    
+    
+
+
+
+
+
